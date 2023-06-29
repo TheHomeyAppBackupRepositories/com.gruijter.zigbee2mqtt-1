@@ -1,0 +1,276 @@
+[
+	{
+		"definition": null,
+		"disabled": false,
+		"endpoints": {
+			"1": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"10": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"11": {
+				"bindings": [],
+				"clusters": {
+					"input": [
+						"ssIasAce",
+						"genTime"
+					],
+					"output": [
+						"ssIasZone",
+						"ssIasWd"
+					]
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"110": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"12": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"13": {
+				"bindings": [],
+				"clusters": {
+					"input": [
+						"genOta"
+					],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"2": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"242": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"3": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"4": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"47": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"5": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"6": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			},
+			"8": {
+				"bindings": [],
+				"clusters": {
+					"input": [],
+					"output": []
+				},
+				"configured_reportings": [],
+				"scenes": []
+			}
+		},
+		"friendly_name": "Coordinator",
+		"ieee_address": "0x00124b0024c17218",
+		"interview_completed": true,
+		"interviewing": false,
+		"network_address": 0,
+		"supported": false,
+		"type": "Coordinator"
+	},
+	{
+		"date_code": "",
+		"definition": {
+			"description": "Door sensor",
+			"exposes": [
+				{
+					"access": 1,
+					"description": "Indicates if the contact is closed (= true) or open (= false)",
+					"name": "contact",
+					"property": "contact",
+					"type": "binary",
+					"value_off": true,
+					"value_on": false
+				},
+				{
+					"access": 1,
+					"description": "Indicates if the battery of this device is almost empty",
+					"name": "battery_low",
+					"property": "battery_low",
+					"type": "binary",
+					"value_off": false,
+					"value_on": true
+				},
+				{
+					"access": 1,
+					"description": "Indicates whether the device is tampered",
+					"name": "tamper",
+					"property": "tamper",
+					"type": "binary",
+					"value_off": false,
+					"value_on": true
+				},
+				{
+					"access": 1,
+					"description": "Remaining battery in %, can take up to 24 hours before reported.",
+					"name": "battery",
+					"property": "battery",
+					"type": "numeric",
+					"unit": "%",
+					"value_max": 100,
+					"value_min": 0
+				},
+				{
+					"access": 1,
+					"description": "Voltage of the battery in millivolts",
+					"name": "voltage",
+					"property": "voltage",
+					"type": "numeric",
+					"unit": "mV"
+				},
+				{
+					"access": 1,
+					"description": "Link quality (signal strength)",
+					"name": "linkquality",
+					"property": "linkquality",
+					"type": "numeric",
+					"unit": "lqi",
+					"value_max": 255,
+					"value_min": 0
+				}
+			],
+			"model": "TS0203",
+			"options": [],
+			"supports_ota": false,
+			"vendor": "TuYa"
+		},
+		"disabled": false,
+		"endpoints": {
+			"1": {
+				"bindings": [
+					{
+						"cluster": "genPowerCfg",
+						"target": {
+							"endpoint": 1,
+							"ieee_address": "0x00124b0024c17218",
+							"type": "endpoint"
+						}
+					}
+				],
+				"clusters": {
+					"input": [
+						"genPowerCfg",
+						"genIdentify",
+						"ssIasZone",
+						"genBasic"
+					],
+					"output": [
+						"genIdentify",
+						"genGroups",
+						"genScenes",
+						"genOnOff",
+						"genLevelCtrl",
+						"touchlink",
+						"genOta",
+						"genTime"
+					]
+				},
+				"configured_reportings": [
+					{
+						"attribute": "batteryPercentageRemaining",
+						"cluster": "genPowerCfg",
+						"maximum_report_interval": 62000,
+						"minimum_report_interval": 3600,
+						"reportable_change": 0
+					},
+					{
+						"attribute": "batteryVoltage",
+						"cluster": "genPowerCfg",
+						"maximum_report_interval": 62000,
+						"minimum_report_interval": 3600,
+						"reportable_change": 0
+					}
+				],
+				"scenes": []
+			}
+		},
+		"friendly_name": "0xa4c1383863a3de62",
+		"ieee_address": "0xa4c1383863a3de62",
+		"interview_completed": true,
+		"interviewing": false,
+		"manufacturer": "_TZ3000_26fmupbb",
+		"model_id": "TS0203",
+		"network_address": 35931,
+		"power_source": "Battery",
+		"supported": true,
+		"type": "EndDevice"
+	}
+]
