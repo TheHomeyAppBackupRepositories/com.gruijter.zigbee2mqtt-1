@@ -25,10 +25,20 @@ const util = require('util');
 
 const setTimeoutPromise = util.promisify(setTimeout);
 
+const capabilities = [
+	'allow_joining',
+	'allow_joining_timeout',
+	'meter_joined_devices',
+	// 'measure_linkquality', // NO WAY TO RETRIEVE RETAINED STATES WITH DEFAULT Z2M CONFIG
+	'meter_mpm',
+	'alarm_offline',
+];
+
 class MyDriver extends Driver {
 
 	async onInit() {
 		this.log('zigbee2mqtt bridge driver has been initialized');
+		this.ds = { deviceCapabilities: capabilities };
 	}
 
 	async onUninit() {
@@ -64,14 +74,15 @@ class MyDriver extends Driver {
 			bridgeSettings.topic = baseTopic;
 			bridgeSettings.version = discovered.version;
 			bridgeSettings.uid = discovered.coordinator.ieee_address;
-			bridgeSettings.zigbee_channel = discovered.network.channel;
-			bridgeSettings.pan_id = discovered.network.pan_id;
+			bridgeSettings.zigbee_channel = discovered.network.channel.toString();
+			bridgeSettings.pan_id = discovered.network.pan_id.toString();
+
 			const device = {
 				name: `Bridge_${discovered.coordinator.ieee_address}`,
 				data: {
 					id: discovered.coordinator.ieee_address, // `zigbee2mqtt_${Math.random().toString(16).substring(2, 8)}`,
 				},
-				// icon: "/my_icon.svg", // relative to: /drivers/<driver_id>/assets/
+				capabilities,
 				settings: bridgeSettings,
 			};
 			return [device];
@@ -110,7 +121,10 @@ class MyDriver extends Driver {
 		const infoTopic = baseTopic === '' ? 'zigbee2mqtt/bridge/info' : `${baseTopic}/bridge/info`;
 		let info = null;
 		const messageListener = (topic, message) => {
-			info = JSON.parse(message);
+			info = message;
+			try {
+				info = JSON.parse(message);
+			} catch (error) { this.log(error); }
 			this.log('info received from MQTT bridge', topic);
 			this.log(info);
 		};

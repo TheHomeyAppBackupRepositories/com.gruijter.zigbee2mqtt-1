@@ -1,0 +1,30 @@
+{
+  "battery_low": false,
+  "boost_timeset_countdown": 0,
+  "child_lock": "UNLOCK",
+  "comfort_temperature": 21,
+  "current_heating_setpoint": 15,
+  "eco_temperature": 17,
+  "error_status": 0,
+  "frost_protection": "OFF",
+  "heating_stop": "OFF",
+  "holiday_start_stop": "2021/01/01 01:01 | 2021/01/01 01:01",
+  "holiday_temperature": 17,
+  "linkquality": 134,
+  "local_temperature": 23.5,
+  "local_temperature_calibration": 0.8,
+  "online": "ON",
+  "open_window_temperature": 21,
+  "preset": "auto",
+  "schedule_friday": "06:00/15 12:00/15 14:00/15 17:00/15 24:00/15",
+  "schedule_saturday": "06:00/15 12:00/15 14:00/15 17:00/15 24:00/15",
+  "schedule_sunday": "06:00/15 12:00/15 14:00/15 17:00/15 24:00/15",
+  "schedule_thursday": "06:00/15 12:00/15 14:00/15 17:00/15 24:00/15",
+  "schedule_tuesday": "06:00/15 12:00/15 14:00/15 17:00/15 24:00/15",
+  "schedule_wednesday": "06:00/15 12:00/15 14:00/15 17:00/15 24:00/15",
+  "system_mode": "heat",
+  "update": {
+      "state": "idle"
+  },
+  "working_day": "mon_sun"
+}

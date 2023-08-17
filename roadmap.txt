@@ -1,1 +1,24 @@
-To do:  Return water temp added? Better device icon 
+To do:
+
+Generic:
+add locales translations
+add readme manual
+
+Device:
+Better icons
+Online/offline device https://www.zigbee2mqtt.io/guide/configuration/device-availability.html#availability-advanced-configuration
+fix startup check if device not deleted from list > does not restart automatically
+add more capability mappings https://github.com/Koenkk/zigbee2mqtt/blob/master/lib/extension/homeassistant.ts
+How map composite like Climate? https://www.zigbee2mqtt.io/devices/158-01.html
+Move handleMessage to Bridge?
+
+Bridge:
+device joined / deleted flowcard?
+Show rolling avg linkquality all devices?
+handle bridge deleted/unavailable states in zigbee devices
+
+
+// ADD FLOW ACTION FOR ENUMS
+
+
+

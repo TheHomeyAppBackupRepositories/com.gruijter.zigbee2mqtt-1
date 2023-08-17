@@ -1,0 +1,152 @@
+{
+  "definition": {
+    "description": "Aqara vibration sensor",
+    "exposes": [
+      {
+        "access": 1,
+        "description": "Remaining battery in %, can take up to 24 hours before reported.",
+        "name": "battery",
+        "property": "battery",
+        "type": "numeric",
+        "unit": "%",
+        "value_max": 100,
+        "value_min": 0
+      },
+      {
+        "access": 1,
+        "description": "Temperature of the device",
+        "name": "device_temperature",
+        "property": "device_temperature",
+        "type": "numeric",
+        "unit": "°C"
+      },
+      {
+        "access": 1,
+        "description": "Indicates whether the device detected vibration",
+        "name": "vibration",
+        "property": "vibration",
+        "type": "binary",
+        "value_off": false,
+        "value_on": true
+      },
+      {
+        "access": 1,
+        "description": "Triggered action (e.g. a button click)",
+        "name": "action",
+        "property": "action",
+        "type": "enum",
+        "values": [ "vibration", "tilt", "drop" ]
+      },
+      {
+        "access": 1,
+        "name": "strength",
+        "property": "strength",
+        "type": "numeric"
+      },
+      {
+        "access": 3,
+        "name": "sensitivity",
+        "property": "sensitivity",
+        "type": "enum",
+        "values": [ "low", "medium", "high" ]
+      },
+      {
+        "access": 1,
+        "name": "angle_x",
+        "property": "angle_x",
+        "type": "numeric",
+        "unit": "°",
+        "value_max": 90,
+        "value_min": -90
+      },
+      {
+        "access": 1,
+        "name": "angle_y",
+        "property": "angle_y",
+        "type": "numeric",
+        "unit": "°",
+        "value_max": 90,
+        "value_min": -90
+      },
+      {
+        "access": 1,
+        "name": "angle_z",
+        "property": "angle_z",
+        "type": "numeric",
+        "unit": "°",
+        "value_max": 90,
+        "value_min": -90
+      },
+      {
+        "access": 1,
+        "description": "Voltage of the battery in millivolts",
+        "name": "voltage",
+        "property": "voltage",
+        "type": "numeric",
+        "unit": "mV"
+      },
+      {
+        "access": 1,
+        "description": "Number of power outages",
+        "name": "power_outage_count",
+        "property": "power_outage_count",
+        "type": "numeric"
+      },
+      {
+        "access": 1,
+        "description": "Link quality (signal strength)",
+        "name": "linkquality",
+        "property": "linkquality",
+        "type": "numeric",
+        "unit": "lqi",
+        "value_max": 255,
+        "value_min": 0
+      }
+    ],
+    "model": "DJT11LM",
+    "options": [
+      {
+        "access": 2,
+        "description": "Calibrates the device_temperature value (absolute offset), takes into effect on next report of device.",
+        "name": "device_temperature_calibration",
+        "property": "device_temperature_calibration",
+        "type": "numeric"
+      },
+      {
+        "access": 2,
+        "description": "Time in seconds after which vibration is cleared after detecting it (default 90 seconds).",
+        "name": "vibration_timeout",
+        "property": "vibration_timeout",
+        "type": "numeric",
+        "value_min": 0
+      }
+    ],
+    "supports_ota": false,
+    "vendor": "Xiaomi"
+  },
+  "disabled": false,
+  "endpoints": {
+    "1": {
+      "bindings": [],
+      "clusters": { "input": [], "output": [] },
+      "configured_reportings": [],
+      "scenes": []
+    },
+    "2": {
+      "bindings": [],
+      "clusters": { "input": [], "output": [] },
+      "configured_reportings": [],
+      "scenes": []
+    }
+  },
+  "friendly_name": "Tril sensor",
+  "ieee_address": "0x00158d0006ed86af",
+  "interview_completed": true,
+  "interviewing": false,
+  "manufacturer": "LUMI",
+  "model_id": "lumi.vibration.aq1",
+  "network_address": 20676,
+  "power_source": "Battery",
+  "supported": true,
+  "type": "EndDevice"
+}

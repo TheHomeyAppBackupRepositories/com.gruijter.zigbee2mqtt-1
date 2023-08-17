@@ -31,20 +31,27 @@ class MyDevice extends Device {
 		try {
 			this.settings = await this.getSettings();
 			this.bridgeTopic = `${this.settings.topic}/bridge`; // default zigbee2mqtt/bridge
+			this.msgCounter = 0;
+			this.lastMPMUpdate = Date.now();
+			await this.destroyListeners();
+			await this.migrate();
+
 			await this.connectBridge();
+			await this.registerListeners();
 			this.restarting = false;
 			this.setAvailable();
 			this.log(this.getName(), 'bridge device has been initialized');
 		} catch (error) {
 			this.error(error);
+			this.restarting = false;
 			this.restartDevice(60 * 1000).catch(this.error);
 		}
 	}
 
 	async onUninit() {
 		this.log('Device unInit', this.getName());
-		if (this.client) await this.client.end();
-		await setTimeoutPromise(2000);	// wait 2 secs
+		await this.destroyListeners();
+		await setTimeoutPromise(5000);	// wait 5 secs
 	}
 
 	async onAdded() {
@@ -57,14 +64,53 @@ class MyDevice extends Device {
 	}
 
 	async onDeleted() {
-		if (this.client) await this.client.end();
+		await this.destroyListeners();
 		this.log('Device deleted', this.getName());
+	}
+
+	async migrate() {
+		try {
+			this.log(`checking device migration for ${this.getName()}`);
+			// store the capability states before migration
+			const sym = Object.getOwnPropertySymbols(this).find((s) => String(s) === 'Symbol(state)');
+			const state = this[sym];
+			// check and repair incorrect capability(order)
+			let capsChanged = false;
+			const correctCaps = this.driver.ds.deviceCapabilities;
+			for (let index = 0; index < correctCaps.length; index += 1) {
+				const caps = this.getCapabilities();
+				const newCap = correctCaps[index];
+				if (caps[index] !== newCap) {
+					this.setUnavailable('Device is migrating. Please wait!');
+					capsChanged = true;
+					// remove all caps from here
+					for (let i = index; i < caps.length; i += 1) {
+						this.log(`removing capability ${caps[i]} for ${this.getName()}`);
+						await this.removeCapability(caps[i])
+							.catch((error) => this.log(error));
+						await setTimeoutPromise(2 * 1000); // wait a bit for Homey to settle
+					}
+					// add the new cap
+					this.log(`adding capability ${newCap} for ${this.getName()}`);
+					await this.addCapability(newCap);
+					// restore capability state
+					if (state[newCap]) this.log(`${this.getName()} restoring value ${newCap} to ${state[newCap]}`);
+					// else this.log(`${this.getName()} has gotten a new capability ${newCap}!`);
+					if (state[newCap] !== undefined) this.setCapability(newCap, state[newCap]);
+					await setTimeoutPromise(2 * 1000); // wait a bit for Homey to settle
+				}
+			}
+			if (capsChanged) this.restartDevice(1 * 1000).catch(this.error);
+		} catch (error) {
+			this.error(error);
+		}
 	}
 
 	async restartDevice(delay) {
 		// this.destroyListeners();
 		if (this.restarting) return;
 		this.restarting = true;
+		await this.destroyListeners();
 		if (this.client) await this.client.end();
 		const dly = delay || 1000 * 5;
 		this.log(`Device will restart in ${dly / 1000} seconds`);
@@ -73,14 +119,14 @@ class MyDevice extends Device {
 		this.onInit();
 	}
 
-	// setCapability(capability, value) {
-	// 	if (this.hasCapability(capability) && value !== undefined) {
-	// 		this.setCapabilityValue(capability, value)
-	// 			.catch((error) => {
-	// 				this.log(error, capability, value);
-	// 			});
-	// 	}
-	// }
+	setCapability(capability, value) {
+		if (this.hasCapability(capability) && value !== undefined) {
+			this.setCapabilityValue(capability, value)
+				.catch((error) => {
+					this.log(error, capability, value);
+				});
+		}
+	}
 
 	setSetting(setting, value) {
 		if (this.settings && this.settings[setting] !== value) {
@@ -101,27 +147,85 @@ class MyDevice extends Device {
 
 			const handleMessage = async (topic, message) => {
 				try {
-					this.log(`message received from topic: ${topic}`);
 					if (message.toString() === '') return;
 					const info = JSON.parse(message);
+					// console.log(`message received from topic: ${topic}`, info);
+
+					// get bridge info and join permit status
+					if (topic.includes(`${this.bridgeTopic}/info`)) {
+						// console.dir(info, { depth: null });
+						// console.dir(info.config.devices, { depth: null });
+
+						// check for joining status
+						if (info.permit_join !== this.getCapabilityValue('allow_joining')) {
+							this.setCapability('allow_joining', info.permit_join);
+							this.log('Allow joining:', info.permit_join);
+						}
+						this.setCapability('allow_joining_timeout', Number(info.permit_join_timeout));
+
+						// check number of joined devices
+						if (info.config && info.config.devices) this.setCapability('meter_joined_devices', Object.keys(info.config.devices).length);
+
+						// check for channel, pan_id and version change
+						if (info.version !== this.getSettings().version) {
+							this.setSettings({ version: info.version });
+							const excerpt = `Zigbee2MQTT Bridge was updated to ${info.version}`;
+							this.log(excerpt);
+							await this.homey.notifications.createNotification({ excerpt });
+						}
+						if (info.network.pan_id.toString() !== this.getSettings().pan_id) {
+							const pid = info.network && info.network.pan_id ? info.network.pan_id.toString() : '';
+							this.setSettings({ pan_id: pid });
+							const excerpt = `Zigbee2MQTT PanID was changed to ${pid}`;
+							this.log(excerpt);
+							await this.homey.notifications.createNotification({ excerpt });
+						}
+						if (info.network.channel.toString() !== this.getSettings().zigbee_channel) {
+							const zc = info.network && info.network.channel ? info.network.channel.toString() : '';
+							this.setSettings({ zigbee_channel: zc });
+							const excerpt = `Zigbee2MQTT channel was changed to ${zc}`;
+							this.log(excerpt);
+							await this.homey.notifications.createNotification({ excerpt });
+						}
+					}
 
 					// check for online/offline
 					if (topic.includes(`${this.bridgeTopic}/state`)) {
 						if (info === 'online' || info.state === 'online') {
 							this.log('Zigbee2MQTT bridge is connected');
+							// INFORM ALL DEVICES UNAVAILABLE
+							this.homey.emit('bridgeoffline', false);
+							this.setCapability('alarm_offline', false);
 							// this.setAvailable();
 						}
 						if (info === 'offline' || info.state === 'offline') {
 							this.error('Zigbee2MQTT bridge disconnected');
-							// this.setUnavailable('Zigbee2MQTT bridge disconnected');
+							// INFORM ALL DEVICES AVAILABLE
+							this.homey.emit('bridgeoffline', true);
+							this.setCapability('alarm_offline', true);
+							// this.setUnavailable('Zigbee2MQTT bridge is disconnected');
+						}
+					}
+
+					// get logging msg/minute
+					if (topic.includes(`${this.bridgeTopic}/logging`)) {
+						// console.log('logging was updated', info.message);
+						this.msgCounter += 1;
+						const minutesPassed = (Date.now() - this.lastMPMUpdate) / (60 * 1000);
+						if (minutesPassed > 1) {
+							this.setCapability('meter_mpm', Math.round((10 * this.msgCounter) / minutesPassed) / 10);
+							this.lastMPMUpdate = Date.now();
+							this.msgCounter = 0;
 						}
 					}
 
 					// get device list
 					if (topic.includes(`${this.bridgeTopic}/devices`)) {
-						console.log('device list was updated');
+						// console.log('device list was updated', info);
 						const devices = info.filter((device) => device.type === 'EndDevice' || device.type === 'Router');
 						this.devices = devices;
+						// console.dir(this.devices, { depth: null });
+						this.homey.emit('devicelistupdate', true);
 					}
 
 					// check for namechange
@@ -142,11 +246,29 @@ class MyDevice extends Device {
 
 			const subscribeTopics = async () => {
 				try {
+					this.log(`Subscribing to ${this.bridgeTopic}/info`);
+					await this.client.subscribe([`${this.bridgeTopic}/info`]); // bridge info updates
+					this.log(`Subscribing to ${this.bridgeTopic}/logging`);
+					await this.client.subscribe([`${this.bridgeTopic}/logging`]); // bridge logging updates
 					this.log(`Subscribing to ${this.bridgeTopic}/state`);
 					await this.client.subscribe([`${this.bridgeTopic}/state`]); // bridge online/offline updates
 					this.log(`Subscribing to ${this.bridgeTopic}/devices`);
 					await this.client.subscribe([`${this.bridgeTopic}/devices`]); // bridge all devices updates
-					this.log('mqtt subscriptions ok');
+					this.log('mqtt bridge subscriptions ok');
+				} catch (error) {
+					this.error(error);
+				}
+			};
+
+			const handleDisconnect = async (event) => {
+				try {
+					// if (event === 'error') this.error(err);
+					if (event === 'close') this.log('mqtt closed (disconnected)');
+					if (event === 'offline') this.log('mqtt broker is offline');
+					if (event === 'end') this.log('mqtt client ended');
+					// INFORM ALL DEVICES UNAVAILABLE
+					this.homey.emit('bridgeoffline', true);
+					this.setCapability('alarm_offline', true);
 				} catch (error) {
 					this.error(error);
 				}
@@ -155,14 +277,54 @@ class MyDevice extends Device {
 			this.log('connecting to MQTT', this.settings);
 			this.client = await this.driver.connectMQTT(this.settings);
 			this.client
-				.on('error', (error) => { this.error(error); })
-				.on('offline', () => { this.log('mqtt broker is offline'); })
+				.on('error', this.error)
+				.on('offline', () => handleDisconnect('offline'))
+				.on('close', () => handleDisconnect('close'))
+				.on('end', () => handleDisconnect('end'))
 				.on('reconnect', () => { this.log('mqtt is trying to reconnect'); })
-				.on('close', () => { this.log('mqtt closed (disconnected)'); })
-				.on('end', () => { this.log('mqtt client ended'); })
 				.on('connect', subscribeTopics)
 				.on('message', handleMessage);
+			this.client.setMaxListeners(100); // INCREASE LISTENERS
 			if (this.client.connected) await subscribeTopics();
+			return Promise.resolve(true);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	async joinOnOff(payload, source) {
+		if (!this.client || !this.client.connected) return Promise.reject(Error('Bridge is not connected'));
+		await this.client.publish(`${this.bridgeTopic}/request/permit_join`, JSON.stringify(payload));
+		this.log(`Permit_join ${JSON.stringify(payload)} sent by ${source}`);
+		return Promise.resolve(true);
+	}
+
+	// remove listeners
+	async destroyListeners() {
+		try {
+			this.log('removing listeners', this.getName());
+			// this.homey.removeAllListeners('devicelistupdate');
+			// this.homey.removeAllListeners('bridgeoffline');
+			if (this.client) await this.client.end();
+		} catch (error) {
+			this.error(error);
+		}
+	}
+
+	// register capability listeners
+	registerListeners() {
+		try {
+			if (this.listenersSet) return true;
+			this.log('registering listeners');
+
+			// capabilityListeners will be overwritten, so no need to unregister them
+
+			this.registerCapabilityListener('allow_joining', (onoff) => {
+				const payload = { value: onoff, time: 240 };
+				this.joinOnOff(payload, 'app').catch(this.error);
+			});
+
+			this.listenersSet = true;
 			return Promise.resolve(true);
 		} catch (error) {
 			return Promise.reject(error);
