@@ -24,56 +24,39 @@ along with com.gruijter.zigbee2mqtt.  If not, see <http://www.gnu.org/licenses/>
 
 const Zigbee2MQTTDevice = require('../Zigbee2MQTTDevice');
 
-module.exports = class ZigbeeDevice extends Zigbee2MQTTDevice {
+module.exports = class ZigbeeGroup extends Zigbee2MQTTDevice {
 
 	getDeviceInfo() {
 		if (!this.bridge) throw Error('No bridge, or bridge not ready');
 		if (!this.bridge.devices) throw Error('No devices, or devices not ready');
-		return this.bridge.devices.filter((dev) => dev.ieee_address === this.settings.uid);
+		if (!this.bridge.groups) throw Error('No groups, or groups not ready');
+		const groups = this.bridge.groups.filter((group) => group.id.toString() === this.settings.uid);
+		const group = groups[0];
+		const members = group.members.map((member) => member.ieee_address);
+		const devices = this.bridge.devices.filter((dev) => dev.definition && dev.definition.exposes && members.includes(dev.ieee_address));
+		group.devices = devices;
+		return [group];
 	}
 
 	async onInit() {
-		this.zigbee2MqttType = 'Device';
+		this.zigbee2MqttType = 'Group';
 		await super.onInit();
 	}
 
 	// register homey event listeners
 	async registerHomeyEventListeners() {
-		if (this.eventListenerDeviceListUpdate) this.homey.removeListener('devicelistupdate', this.eventListenerDeviceListUpdate);
-		this.eventListenerDeviceListUpdate = async () => {
+		if (this.eventListenerGroupListUpdate) this.homey.removeListener('grouplistupdate', this.eventListenerGroupListUpdate);
+		this.eventListenerGroupListUpdate = async () => {
 			this.checkChangedOrDeleted().catch(this.error);
 		};
-		this.homey.on('devicelistupdate', this.eventListenerDeviceListUpdate);
+		this.homey.on('grouplistupdate', this.eventListenerGroupListUpdate);
 		await super.registerHomeyEventListeners();
 	}
 
 	destroyListeners() {
 		super.destroyListeners();
-		if (this.eventListenerDeviceListUpdate) this.homey.removeListener('devicelistupdate', this.eventListenerDeviceListUpdate);
+		if (this.eventListenerGroupListUpdate) this.homey.removeListener('grouplistupdate', this.eventListenerGroupListUpdate);
 	}
 };
-
 /*
-{
-	battery: 100,
-	battery_low: false,
-	contact: true,
-	linkquality: 25,
-	tamper: false,
-	voltage": 3000
-}
-
-{
-	child_lock: "UNLOCK",
-	current: 0,
-	energy: 7.12,
-	indicator_mode: "off/on",
-	linkquality: 218,
-	power: 0,
-	power_outage_memory: "restore",
-	state: "ON",
-	update: { installed_version: 192, latest_version: 192, state: idle },
-	voltage: 232
-}
-
 */

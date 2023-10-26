@@ -25,7 +25,7 @@ const util = require('util');
 
 const setTimeoutPromise = util.promisify(setTimeout);
 
-class MyDevice extends Device {
+module.exports = class Zigbee2MQTTBridge extends Device {
 
 	async onInit() {
 		try {
@@ -39,7 +39,7 @@ class MyDevice extends Device {
 			await this.connectBridge();
 			await this.registerListeners();
 			this.restarting = false;
-			this.setAvailable();
+			this.setAvailable().catch(this.error);
 			this.log(this.getName(), 'bridge device has been initialized');
 		} catch (error) {
 			this.error(error);
@@ -81,7 +81,7 @@ class MyDevice extends Device {
 				const caps = this.getCapabilities();
 				const newCap = correctCaps[index];
 				if (caps[index] !== newCap) {
-					this.setUnavailable('Device is migrating. Please wait!');
+					this.setUnavailable('Bridge device is migrating. Please wait!').catch(this.error);
 					capsChanged = true;
 					// remove all caps from here
 					for (let i = index; i < caps.length; i += 1) {
@@ -168,21 +168,21 @@ class MyDevice extends Device {
 
 						// check for channel, pan_id and version change
 						if (info.version !== this.getSettings().version) {
-							this.setSettings({ version: info.version });
+							this.setSetting('version', info.version);
 							const excerpt = `Zigbee2MQTT Bridge was updated to ${info.version}`;
 							this.log(excerpt);
 							await this.homey.notifications.createNotification({ excerpt });
 						}
 						if (info.network.pan_id.toString() !== this.getSettings().pan_id) {
 							const pid = info.network && info.network.pan_id ? info.network.pan_id.toString() : '';
-							this.setSettings({ pan_id: pid });
+							this.setSetting('pan_id', pid);
 							const excerpt = `Zigbee2MQTT PanID was changed to ${pid}`;
 							this.log(excerpt);
 							await this.homey.notifications.createNotification({ excerpt });
 						}
 						if (info.network.channel.toString() !== this.getSettings().zigbee_channel) {
 							const zc = info.network && info.network.channel ? info.network.channel.toString() : '';
-							this.setSettings({ zigbee_channel: zc });
+							this.setSetting('zigbee_channel', zc);
 							const excerpt = `Zigbee2MQTT channel was changed to ${zc}`;
 							this.log(excerpt);
 							await this.homey.notifications.createNotification({ excerpt });
@@ -222,22 +222,20 @@ class MyDevice extends Device {
 					// get device list
 					if (topic.includes(`${this.bridgeTopic}/devices`)) {
 						// console.log('device list was updated', info);
-						const devices = info.filter((device) => device.type === 'EndDevice' || device.type === 'Router');
+						const devices = info.filter((device) => device.type === 'EndDevice'
+							|| device.type === 'Router' || device.type === 'GreenPower');
 						this.devices = devices;
 						// console.dir(this.devices, { depth: null });
 						this.homey.emit('devicelistupdate', true);
 					}
 
-					// check for namechange
-					// if (topic.includes(`${this.bridgeTopic}/devices`)) {
-					// 	const deviceInfo = info.filter((dev) => dev.ieee_address === this.settings.uid);
-					// 	if (!deviceInfo[0]) this.setUnavailable('device went missing in Zigbee2MQTT');
-					// 	if (deviceInfo[0] && deviceInfo[0].friendly_name !== this.settings.friendly_name) {
-					// 		this.log('device was renamed in Zigbee2MQTT', this.settings.friendly_name, deviceInfo[0].friendly_name);
-					// 		this.setSettings({ friendly_name: deviceInfo[0].friendly_name });
-					// 		this.restartDevice(1000).catch(this.error);
-					// 	}
-					// }
+					// get group list
+					if (topic.includes(`${this.bridgeTopic}/groups`)) {
+						// console.log('group list was updated', info);
+						this.groups = info;
+						// console.dir(this.groups, { depth: null });
+						this.homey.emit('grouplistupdate', true);
+					}
 
 				} catch (error) {
 					this.error(error);
@@ -250,10 +248,12 @@ class MyDevice extends Device {
 					await this.client.subscribe([`${this.bridgeTopic}/info`]); // bridge info updates
 					this.log(`Subscribing to ${this.bridgeTopic}/logging`);
 					await this.client.subscribe([`${this.bridgeTopic}/logging`]); // bridge logging updates
+					this.log(`Subscribing to ${this.bridgeTopic}/groups`);
+					await this.client.subscribe([`${this.bridgeTopic}/groups`]); // bridge all group updates
 					this.log(`Subscribing to ${this.bridgeTopic}/state`);
 					await this.client.subscribe([`${this.bridgeTopic}/state`]); // bridge online/offline updates
 					this.log(`Subscribing to ${this.bridgeTopic}/devices`);
-					await this.client.subscribe([`${this.bridgeTopic}/devices`]); // bridge all devices updates
+					await this.client.subscribe([`${this.bridgeTopic}/devices`]); // bridge all device updates
 					this.log('mqtt bridge subscriptions ok');
 				} catch (error) {
 					this.error(error);
@@ -304,6 +304,7 @@ class MyDevice extends Device {
 		try {
 			this.log('removing listeners', this.getName());
 			// this.homey.removeAllListeners('devicelistupdate');
+			// this.homey.removeAllListeners('grouplistupdate');
 			// this.homey.removeAllListeners('bridgeoffline');
 			if (this.client) await this.client.end();
 		} catch (error) {
@@ -331,9 +332,7 @@ class MyDevice extends Device {
 		}
 	}
 
-}
-
-module.exports = MyDevice;
+};
 
 /*
 

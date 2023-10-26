@@ -68,6 +68,7 @@ const capabilityMap = {
 	// : (val) => ['light_hue', val.hue], // { color: { x: Number(val), y: Number(val) } }
 	// : (val) => ['light_saturation', Number(val)],
 	color_temp: (val) => ['light_temperature', (Number(val) - 153) / 347, { color_temp: 153 + (Number(val) * 347) }],
+	color_mode: (val) => ['light_mode', val === 'xy' || val === 'hs' ? 'color' : 'temperature'],
 
 	// Standard Homey enum capabilities
 	// light_mode
@@ -88,7 +89,7 @@ const capabilityMap = {
 	state_l1: (val) => ['onoff.l1', val === 'ON', { state_l1: val ? 'ON' : 'OFF' }],
 	state_l2: (val) => ['onoff.l2', val === 'ON', { state_l2: val ? 'ON' : 'OFF' }],
 	device_fault: (val) => ['alarm_generic.fault', val],
-	vibration: (val) => ['alarm_generic.vibration', val],
+	vibration: (val) => ['alarm_motion.vibration', val],
 	gas: (val) => ['alarm_generic.gas', val],
 	occupancy: (val) => ['alarm_motion.occupancy', val],
 	presence: (val) => ['alarm_motion.presence', val],
@@ -154,12 +155,17 @@ const classIconMap = {
 	'radiator valve': ['thermostat', 'radiator_valve.svg'],
 	'soil sensor': ['sensor', 'soil_sensor.svg'],
 	'vibration sensor': ['sensor', 'vibration_sensor.svg'],
+	'pressure sensor': ['sensor', 'vibration_sensor.svg'],
 	'wireless switch': ['sensor', 'wireless_switch.svg'],
 	'on/off switch': ['sensor', 'wireless_switch.svg'],
+	'wall switch module': ['button', 'wireless_switch.svg'],
+	'smart button': ['button', 'wireless_switch.svg'],
 	'2 gang switch module': ['socket', '2gangswitch.svg'],
 	'2 channel dimmer': ['light', '2gangdimmer.svg'],
 	plug: ['socket', 'socket.svg'],
 	bulb: ['light', 'light.svg'],
+	gu10: ['light', 'light.svg'],
+	e27: ['light', 'light.svg'],
 	'led controller': ['light', 'light.svg'],
 	led: ['light', 'light.svg'],
 };
@@ -179,33 +185,45 @@ const getExpMap = function mapExposure() {
 // map capabilities to Homey
 const mapProperty = function mapProperty(Z2MDevice) {
 	const homeyCapabilities = [];
+	function pushUniqueCapabilities(capVal) {
+		if (!homeyCapabilities.includes(capVal)) {
+			homeyCapabilities.push(capVal);
+		}
+	}
 	const capDetails = {};
 	const mapExposure = (exp) => {
 		// create exception for color lights
 		if (exp.property === 'color') {
-			homeyCapabilities.push('light_hue');
+			pushUniqueCapabilities('light_hue');
 			capDetails.light_hue = exp;
-			homeyCapabilities.push('light_saturation');
+			pushUniqueCapabilities('light_saturation');
 			capDetails.light_saturation = exp;
+			pushUniqueCapabilities('light_mode');
+			capDetails.light_mode = exp;
 		} else {
 			const mapFunc = capabilityMap[exp.property];
 			if (mapFunc) { 		//  included in Homey mapping
 				const capVal = mapFunc();
-				homeyCapabilities.push(capVal[0]);
+				pushUniqueCapabilities(capVal[0]);
 				capDetails[capVal[0]] = exp; // [exp.unit, exp.name, exp.values];
 			}
 		}
 	};
-	if (Z2MDevice.definition && Z2MDevice.definition.exposes) {
-		Z2MDevice.definition.exposes.forEach((exp) => {
-			if (exp.features) {	// specific or composite (e.g. light or switch)
-				exp.features.forEach((feature) => {
-					mapExposure(feature);
-				});
-			} else mapExposure(exp); // generic types (e.g. numeric or binary)
-		});
+
+	let exposes = [];
+	if (Z2MDevice.devices && Z2MDevice.devices[0].definition && Z2MDevice.devices[0].definition.exposes) {
+		exposes = Z2MDevice.devices[0].definition.exposes;
+	} else if (Z2MDevice.definition && Z2MDevice.definition.exposes) {
+		exposes = Z2MDevice.definition.exposes;
 	}
-	const caps = homeyCapabilities.filter((cap) => cap !== null);
+	exposes.forEach((exp) => {
+		if (exp.features) {	// specific or composite (e.g. light or switch)
+			exp.features.forEach((feature) => {
+				mapExposure(feature);
+			});
+		} else mapExposure(exp); // generic types (e.g. numeric or binary)
+	});
+	const caps = homeyCapabilities.filter((cap) => cap !== null);	// .sort();
 	return { caps, capDetails };
 };
 
